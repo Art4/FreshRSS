@@ -2,11 +2,20 @@
 declare(strict_types=1);
 
 use Psr\SimpleCache\CacheInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 
 /**
  * Provide caching functions.
  */
 class FreshRSS_Cache_Service implements CacheInterface {
+
+	private string $location;
+
+	private string $extension = 'spc';
+
+	public function __construct(string $location) {
+		$this->location = $location;
+	}
 
 	/**
 	 * Fetches a value from the cache.
@@ -20,7 +29,13 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 *   MUST be thrown if the $key string is not a legal value.
 	 */
 	public function get(string $key, mixed $default = null): mixed {
-		throw new \Exception(__METHOD__ . 'is not yet implemented');
+		$filepath = $this->createFilepath($key);
+
+		if (file_exists($filepath) && is_readable($filepath)) {
+			return unserialize(file_get_contents($filepath));
+		}
+
+		return false;
 	}
 
 	/**
@@ -130,5 +145,21 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 */
 	public function has(string $key): bool {
 		throw new \Exception(__METHOD__ . 'is not yet implemented');
+	}
+
+	private function createFilepath(string $key): string {
+		if ($key === '') {
+			throw new class (
+				'Cache key MUST NOT be an empty string'
+			) extends \Exception implements InvalidArgumentException {};
+		}
+
+		if (preg_match('#[\{\}\(\)/\\\@\:]#', $key)) {
+			throw new class (
+				sprintf('Cache key `%s` contains one or more invalid characters: {}()/\@:', $key)
+			) extends \Exception implements InvalidArgumentException {};
+		}
+
+		return "$this->location/$key.$this->extension";
 	}
 }
