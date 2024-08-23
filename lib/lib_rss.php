@@ -88,6 +88,11 @@ function classAutoloader(string $class): void {
 		$base_dir = LIB_PATH . '/simplepie/simplepie/src/';
 		$relative_class_name = substr($class, strlen($prefix));
 		include $base_dir . str_replace('\\', '/', $relative_class_name) . '.php';
+	} elseif (str_starts_with($class, 'Psr\\SimpleCache\\')) {
+		$prefix = 'Psr\\SimpleCache\\';
+		$base_dir = LIB_PATH . '/psr/simple-cache/src/';
+		$relative_class_name = substr($class, strlen($prefix));
+		include $base_dir . str_replace('\\', '/', $relative_class_name) . '.php';
 	} elseif (str_starts_with($class, 'Gt\\CssXPath\\')) {
 		$prefix = 'Gt\\CssXPath\\';
 		$base_dir = LIB_PATH . '/phpgt/cssxpath/src/';
