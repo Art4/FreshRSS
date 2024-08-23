@@ -75,7 +75,13 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 *   MUST be thrown if the $key string is not a legal value.
 	 */
 	public function delete(string $key): bool {
-		throw new \Exception(__METHOD__ . 'is not yet implemented');
+		$filepath = $this->createFilepath($key);
+
+		if (file_exists($filepath) && is_readable($filepath)) {
+			return unlink(file_get_contents($filepath));
+		}
+
+		return false;
 	}
 
 	/**
