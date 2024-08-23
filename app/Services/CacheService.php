@@ -35,7 +35,7 @@ class FreshRSS_Cache_Service implements CacheInterface {
 			return unserialize(file_get_contents($filepath));
 		}
 
-		return false;
+		return $default;
 	}
 
 	/**
@@ -53,7 +53,15 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 *   MUST be thrown if the $key string is not a legal value.
 	 */
 	public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool {
-		throw new \Exception(__METHOD__ . 'is not yet implemented');
+		$filepath = $this->createFilepath($key);
+
+		if (file_exists($filepath) && is_writable($filepath) || file_exists($this->location) && is_writable($this->location)) {
+			$data = serialize($value);
+
+			return (bool) file_put_contents($filepath, $data);
+		}
+
+		return false;
 	}
 
 	/**
