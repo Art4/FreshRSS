@@ -88,6 +88,11 @@ function classAutoloader(string $class): void {
 		$base_dir = LIB_PATH . '/simplepie/simplepie/src/';
 		$relative_class_name = substr($class, strlen($prefix));
 		include $base_dir . str_replace('\\', '/', $relative_class_name) . '.php';
+	} elseif (str_starts_with($class, 'Psr\\SimpleCache\\')) {
+		$prefix = 'Psr\\SimpleCache\\';
+		$base_dir = LIB_PATH . '/psr/simple-cache/src/';
+		$relative_class_name = substr($class, strlen($prefix));
+		include $base_dir . str_replace('\\', '/', $relative_class_name) . '.php';
 	} elseif (str_starts_with($class, 'Gt\\CssXPath\\')) {
 		$prefix = 'Gt\\CssXPath\\';
 		$base_dir = LIB_PATH . '/phpgt/cssxpath/src/';
@@ -316,7 +321,7 @@ function customSimplePie(array $attributes = [], array $curl_options = []): \Sim
 	}
 	$simplePie->set_useragent(FRESHRSS_USERAGENT);
 	$simplePie->set_cache_name_function('sha1');
-	$simplePie->set_cache_location(CACHE_PATH);
+	$simplePie->set_cache(new FreshRSS_Cache_Service(CACHE_PATH));
 	$simplePie->set_cache_duration($limits['cache_duration']);
 	$simplePie->enable_order_by_date(false);
 
@@ -420,7 +425,6 @@ function cleanCache(int $hours = 720): void {
 	$files = array_merge(
 		glob(CACHE_PATH . '/*.html', GLOB_NOSORT) ?: [],
 		glob(CACHE_PATH . '/*.json', GLOB_NOSORT) ?: [],
-		glob(CACHE_PATH . '/*.spc', GLOB_NOSORT) ?: [],
 		glob(CACHE_PATH . '/*.xml', GLOB_NOSORT) ?: []);
 	foreach ($files as $file) {
 		if (substr($file, -10) === 'index.html') {
@@ -431,6 +435,8 @@ function cleanCache(int $hours = 720): void {
 			unlink($file);
 		}
 	}
+
+	(new FreshRSS_Cache_Service(CACHE_PATH))->clearExpired();
 }
 
 /**
