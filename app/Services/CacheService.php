@@ -13,6 +13,14 @@ class FreshRSS_Cache_Service implements CacheInterface {
 
 	private string $extension = 'spc';
 
+	private string $metaExtension = 'meta';
+
+	private array $metaDefault = [
+		'expiration_time' => 0,
+	];
+
+	private int $defaultTtl = 3600;
+
 	public function __construct(string $location) {
 		$this->location = $location;
 	}
@@ -30,6 +38,27 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 */
 	public function get(string $key, mixed $default = null): mixed {
 		$filepath = $this->createFilepath($key);
+
+		$metaFilepath = $filepath . '.' . $this->metaExtension;
+		$meta = $this->metaDefault;
+
+		if (!file_exists($metaFilepath) || !is_readable($metaFilepath)) {
+			return $default;
+		}
+
+		try {
+			$meta = json_decode(file_get_contents($metaFilepath), true, 512, JSON_THROW_ON_ERROR);
+		} catch (\Throwable $th) {
+			return $default;
+		}
+
+		if (!is_array($meta) || !array_key_exists('expiration_time', $meta)) {
+			return $default;
+		}
+
+		if (intval($meta['expiration_time']) < time()) {
+			return $default;
+		}
 
 		if (file_exists($filepath) && is_readable($filepath)) {
 			return unserialize(file_get_contents($filepath));
@@ -54,6 +83,26 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 */
 	public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool {
 		$filepath = $this->createFilepath($key);
+		$metaFilepath = $filepath . '.' . $this->metaExtension;
+		$meta = $this->metaDefault;
+
+		if ($ttl instanceof \DateInterval) {
+			$meta['expiration_time'] = (new \DateTimeImmutable('now'))->add($ttl)->getTimestamp();
+		} elseif (is_int($ttl)) {
+			$meta['expiration_time'] = time() + $ttl;
+		} else {
+			$meta['expiration_time'] = time() + $this->defaultTtl;
+		}
+
+		if (file_exists($metaFilepath) && is_writable($metaFilepath) || file_exists($this->location) && is_writable($this->location)) {
+			return false;
+		}
+
+		$wasMetaWritten = (bool) file_put_contents($metaFilepath, json_encode($meta));
+
+		if ($wasMetaWritten === false) {
+			return false;
+		}
 
 		if (file_exists($filepath) && is_writable($filepath) || file_exists($this->location) && is_writable($this->location)) {
 			$data = serialize($value);
@@ -76,9 +125,14 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 */
 	public function delete(string $key): bool {
 		$filepath = $this->createFilepath($key);
+		$metaFilepath = $filepath . '.' . $this->metaExtension;
 
-		if (file_exists($filepath) && is_readable($filepath)) {
-			return unlink(file_get_contents($filepath));
+		if (file_exists($metaFilepath) && is_writable($metaFilepath)) {
+			unlink($metaFilepath);
+		}
+
+		if (file_exists($filepath) && is_writable($filepath)) {
+			return unlink($filepath);
 		}
 
 		return false;
