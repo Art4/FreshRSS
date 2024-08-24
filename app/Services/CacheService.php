@@ -40,23 +40,8 @@ class FreshRSS_Cache_Service implements CacheInterface {
 		$filepath = $this->createFilepath($key);
 
 		$metaFilepath = $filepath . '.' . $this->metaExtension;
-		$meta = $this->metaDefault;
 
-		if (!file_exists($metaFilepath) || !is_readable($metaFilepath)) {
-			return $default;
-		}
-
-		try {
-			$meta = json_decode(file_get_contents($metaFilepath), true, 512, JSON_THROW_ON_ERROR);
-		} catch (\Throwable $th) {
-			return $default;
-		}
-
-		if (!is_array($meta) || !array_key_exists('expiration_time', $meta)) {
-			return $default;
-		}
-
-		if (intval($meta['expiration_time']) < time()) {
+		if ($this->getExpirationTime($metaFilepath) < time()) {
 			return $default;
 		}
 
@@ -158,6 +143,29 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	}
 
 	/**
+	 * Wipes clean the expired cache's keys.
+	 *
+	 * @return bool True on success and false on failure.
+	 */
+	public function clearExpired(): bool {
+		// N.B.: GLOB_BRACE is not available on all platforms
+		$files = array_merge(
+			glob($this->location . '/*.' . $this->extension . '.' . $this->metaExtension, GLOB_NOSORT) ?: [],
+		);
+
+		foreach ($files as $metaFilepath) {
+			if ($this->getExpirationTime($metaFilepath) < time()) {
+				$file = substr($metaFilepath, 0, strlen($metaFilepath) - strlen('.' . $this->metaExtension));
+
+				unlink($metaFilepath);
+				unlink($file);
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Obtains multiple cache items by their unique keys.
 	 *
 	 * @param iterable<string> $keys    A list of keys that can be obtained in a single operation.
@@ -239,5 +247,23 @@ class FreshRSS_Cache_Service implements CacheInterface {
 		}
 
 		return "$this->location/$key.$this->extension";
+	}
+
+	private function getExpirationTime(string $metaFilepath): int {
+		if (!file_exists($metaFilepath) || !is_readable($metaFilepath)) {
+			return $this->metaDefault['expiration_time'];
+		}
+
+		try {
+			$meta = json_decode(file_get_contents($metaFilepath), true, 512, JSON_THROW_ON_ERROR);
+		} catch (\Throwable $th) {
+			return $this->metaDefault['expiration_time'];
+		}
+
+		if (!is_array($meta) || !array_key_exists('expiration_time', $meta)) {
+			return $this->metaDefault['expiration_time'];
+		}
+
+		return intval($meta['expiration_time']);
 	}
 }
