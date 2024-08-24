@@ -425,7 +425,6 @@ function cleanCache(int $hours = 720): void {
 	$files = array_merge(
 		glob(CACHE_PATH . '/*.html', GLOB_NOSORT) ?: [],
 		glob(CACHE_PATH . '/*.json', GLOB_NOSORT) ?: [],
-		glob(CACHE_PATH . '/*.spc', GLOB_NOSORT) ?: [],
 		glob(CACHE_PATH . '/*.xml', GLOB_NOSORT) ?: []);
 	foreach ($files as $file) {
 		if (substr($file, -10) === 'index.html') {
@@ -436,6 +435,8 @@ function cleanCache(int $hours = 720): void {
 			unlink($file);
 		}
 	}
+
+	(new FreshRSS_Cache_Service(CACHE_PATH))->clearExpired();
 }
 
 /**
