@@ -144,7 +144,17 @@ class FreshRSS_Cache_Service implements CacheInterface {
 	 * @return bool True on success and false on failure.
 	 */
 	public function clear(): bool {
-		throw new \Exception(__METHOD__ . 'is not yet implemented');
+		// N.B.: GLOB_BRACE is not available on all platforms
+		$files = array_merge(
+			glob($this->location . '/*.' . $this->extension, GLOB_NOSORT) ?: [],
+			glob($this->location . '/*.' . $this->extension . '.' . $this->metaExtension, GLOB_NOSORT) ?: [],
+		);
+
+		foreach ($files as $file) {
+			unlink($file);
+		}
+
+		return true;
 	}
 
 	/**
